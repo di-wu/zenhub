@@ -73,7 +73,7 @@ func (h Webhook) Parse(r *http.Request, types ...Type) (interface{}, error) {
 		err = json.Unmarshal(js, &pl)
 		return pl, err
 	case EstimateCleared:
-		return event, nil
+		return EstimateClearedEvent{event}, nil
 	case IssueReprioritized:
 		var pl IssueReprioritizedEvent
 		err = json.Unmarshal(js, &pl)

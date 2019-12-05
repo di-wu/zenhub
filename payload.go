@@ -30,6 +30,10 @@ type EstimateSetEvent struct {
 	Estimate string `json:"estimate"`
 }
 
+type EstimateClearedEvent struct {
+	Event
+}
+
 type IssueReprioritizedEvent struct {
 	Event
 	ToPipelineName string `json:"to_pipeline_name"`
