@@ -1,84 +1,144 @@
 package zenhub
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
-var (
-	ErrNoTypesSpecified  = errors.New("no type specified to parse")
-	ErrInvalidHTTPMethod = errors.New("invalid http method")
-	ErrParsingPayload    = errors.New("error parsing payload")
-	ErrEventNotFound     = errors.New("event not defined to be parsed")
+const (
+	defaultBaseURL = "https://api.zenhub.io/"
 )
 
-// Webhook instance that contain the method to process incoming events.
-type Webhook struct{}
+// Option is a configuration option for the client.
+type Option func(client *Client) error
 
-// Parse parses and verifies the specified types and returns an event object or an error.
-func (h Webhook) Parse(r *http.Request, types ...Type) (interface{}, error) {
-	if len(types) == 0 {
-		return nil, ErrNoTypesSpecified
-	}
-	if r.Method != http.MethodPost {
-		return nil, ErrInvalidHTTPMethod
-	}
+// Options is a namespace var for configuration options.
+var Options = ClientOptions{}
 
-	payload, err := ioutil.ReadAll(r.Body)
-	if err != nil || len(payload) == 0 {
-		return nil, ErrParsingPayload
-	}
+// ClientOptions is a namespace for configuration option methods.
+type ClientOptions struct{}
 
-	q, err := url.ParseQuery(string(payload))
-	if err != nil {
-		return nil, err
+// Secret registers the ZenHub secret.
+func (ClientOptions) Secret(secret string) Option {
+	return func(c *Client) error {
+		c.secret = &secret
+		return nil
 	}
-	values := make(map[string]string)
-	for key, _ := range q {
-		values[key] = q.Get(key)
-	}
+}
 
-	js, err := json.Marshal(values)
-	if err != nil {
-		return nil, err
+// Client registers a (custom) http client.
+func (ClientOptions) Client(client *http.Client) Option {
+	return func(c *Client) error {
+		c.client = client
+		return nil
 	}
+}
 
-	var event Event
-	if err := json.Unmarshal(js, &event); err != nil {
-		return nil, err
+// baseURL registers a custom enterprise url.
+func (ClientOptions) BaseURL(baseURL string) Option {
+	return func(c *Client) error {
+		baseEndpoint, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+		if !strings.HasSuffix(baseEndpoint.Path, "/") {
+			baseEndpoint.Path += "/"
+		}
+		c.baseURL = baseEndpoint
+		return nil
 	}
+}
 
-	var found bool
-	for _, typ := range types {
-		if typ == event.Type {
-			found = true
-			break
+type Client struct {
+	client *http.Client
+	// Base URL for API requests. Defaults to the public ZenHub API.
+	baseURL *url.URL
+	secret  *string
+}
+
+func NewClient(options ...Option) (*Client, error) {
+	c := new(Client)
+	for _, opt := range options {
+		if err := opt(c); err != nil {
+			return nil, errors.New("error applying option")
 		}
 	}
-	if !found {
-		return nil, ErrEventNotFound
+	if c.client == nil {
+		c.client = &http.Client{}
+	}
+	if c.baseURL == nil {
+		baseURL, _ := url.Parse(defaultBaseURL)
+		c.baseURL = baseURL
+	}
+	return c, nil
+}
+
+func (c *Client)  NewRequest(method, relativeURL string, body interface{}) (*http.Request, error) {
+	if !strings.HasSuffix(c.baseURL.Path, "/") {
+		return nil, fmt.Errorf("base url must have a trailing slash, but %q does not", c.baseURL)
+	}
+	u, err := c.baseURL.Parse(relativeURL)
+	if err != nil {
+		return nil, err
 	}
 
-	switch event.Type {
-	case IssueTransfer:
-		var pl IssueTransferEvent
-		err = json.Unmarshal(js, &pl)
-		return pl, err
-	case EstimateSet:
-		var pl EstimateSetEvent
-		err = json.Unmarshal(js, &pl)
-		return pl, err
-	case EstimateCleared:
-		return EstimateClearedEvent{event}, nil
-	case IssueReprioritized:
-		var pl IssueReprioritizedEvent
-		err = json.Unmarshal(js, &pl)
-		return pl, err
-	default:
-		return nil, fmt.Errorf("unknown type %s", event.Type)
+	var buf io.ReadWriter
+	if body != nil {
+		buf = new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		err := enc.Encode(body)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	req, err := http.NewRequest(method, u.String(), buf)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.secret != nil {
+		req.Header.Set("X-Authentication-Token", *c.secret)
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return req, nil
+}
+
+func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	err = CheckResponse(resp)
+
+	if v != nil {
+		decErr := json.NewDecoder(resp.Body).Decode(v)
+		if decErr == io.EOF {
+			decErr = nil // ignore EOF errors
+		}
+		if decErr != nil {
+			err = decErr
+		}
+
+	}
+	return resp, err
+}
+
+func CheckResponse(r *http.Response) error {
+	if c := r.StatusCode; 200 <= c && c <= 299 {
+		return nil
+	}
+	return errors.New(fmt.Sprintf("non-200 error returned: %d", r.StatusCode))
 }
