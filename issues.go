@@ -48,7 +48,7 @@ const (
 	TransferIssue IssuesEventType = "transferIssue"
 )
 
-func (c *Client) GetIssueEvent(repositoryID, issueNumber int) (*[]IssueEvent, *http.Response, error) {
+func (c *Client) GetIssueEvents(repositoryID, issueNumber int) (*[]IssueEvent, *http.Response, error) {
 	u := fmt.Sprintf("p1/repositories/%d/issues/%d/events", repositoryID, issueNumber)
 	req, err := c.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -85,11 +85,11 @@ type Position struct {
 	index int
 }
 
-func NewTopPosition() Position {
+func TopPosition() Position {
 	return Position{pos: "top"}
 }
 
-func NewBottomPosition() Position {
+func BottomPosition() Position {
 	return Position{pos: "bottom"}
 }
 

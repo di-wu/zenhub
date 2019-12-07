@@ -1,9 +1,26 @@
 # zenhub
 [![GoDoc](https://godoc.org/github.com/di-wu/zenhub?status.svg)](https://godoc.org/github.com/di-wu/zenhub)
 
-allows for easy receiving and parsing of zenhub webhook events
+- client for accessing the zenhub api.
+- webhook for easy receiving and parsing of zenhub webhook events
 
 ## usage
+### client
+```go
+package main
+
+import "github.com/di-wu/zenhub"
+
+func main() {
+    client, _ := zenhub.NewClient(zenhub.Options.Secret(token))
+    issue, _, _ := client.GetIssue(repoID, issueNumber)
+    // do something with issue data
+}
+```
+
+`repoID` is the ID of the repository, not its full name.
+
+### webhook
 ```go
 package main
 
@@ -34,4 +51,15 @@ func main() {
 
     http.ListenAndServe(":3000", nil)
 }
+```
+
+## tests
+all the tests are currently run on an empty private repository.
+```shell script
+export ZENHUB_SECRET="zenhub-token"
+export GITHUB_SECRET="github-token"
+export TEST_REPO_OWNER="di-wu"
+export TEST_REPO_NAME="test"
+
+go test
 ```

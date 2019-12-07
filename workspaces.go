@@ -32,7 +32,7 @@ type Board struct {
 }
 
 func (c *Client) GetBoard(repositoryID int, workspaceID string) (*Board, *http.Response, error) {
-	u := fmt.Sprintf("p2/workspaces/%d/repositories/%d/board", workspaceID, repositoryID)
+	u := fmt.Sprintf("p2/workspaces/%s/repositories/%d/board", workspaceID, repositoryID)
 	req, err := c.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, err
