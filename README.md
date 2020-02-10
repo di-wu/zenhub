@@ -54,7 +54,7 @@ func main() {
 ```
 
 ## tests
-all the tests are currently run on an empty private repository.
+all the tests are currently running on an empty private repository.
 ```shell script
 export ZENHUB_SECRET="zenhub-token"
 export GITHUB_SECRET="github-token"

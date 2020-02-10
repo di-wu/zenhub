@@ -216,7 +216,7 @@ func (c *Client) MoveIssueOld(repositoryID, issueNumber int, move MoveRequest) (
 }
 
 type Estimate struct {
-	Value *int `json:"estimate,omitempty"`
+	Value *int `json:"value,omitempty"`
 }
 
 // GetValue returns the Value field if it's non-nil, zero value otherwise.
