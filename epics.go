@@ -11,6 +11,30 @@ type EpicIssue struct {
 	IssueURL     *string `json:"issue_url,omitempty"`
 }
 
+// GetIssueNumber returns the IssueNumber field if it's non-nil, zero value otherwise.
+func (issue *EpicIssue) GetIssueNumber() int {
+	if issue == nil || issue.IssueNumber == nil {
+		return 0
+	}
+	return *issue.IssueNumber
+}
+
+// GetRepositoryID returns the RepositoryID field if it's non-nil, zero value otherwise.
+func (issue *EpicIssue) GetRepositoryID() int {
+	if issue == nil || issue.RepositoryID == nil {
+		return 0
+	}
+	return *issue.RepositoryID
+}
+
+// GetIssueURL returns the IssueURL field if it's non-nil, zero value otherwise.
+func (issue *EpicIssue) GetIssueURL() string {
+	if issue == nil || issue.IssueURL == nil {
+		return ""
+	}
+	return *issue.IssueURL
+}
+
 func (c *Client) GetEpics(repositoryID int) (*[]EpicIssue, *http.Response, error) {
 	u := fmt.Sprintf("p1/repositories/%d/epics", repositoryID)
 	req, err := c.NewRequest(http.MethodGet, u, nil)
@@ -27,11 +51,27 @@ func (c *Client) GetEpics(repositoryID int) (*[]EpicIssue, *http.Response, error
 }
 
 type EpicData struct {
-	TotalEpicEstimates *Estimate   `json:"total_epic_estimates,omitempty"`
-	Estimate           *Estimate   `json:"estimate,omitempty"`
-	Pipeline           *Pipeline   `json:"pipeline,omitempty"`
-	Pipelines          []Pipeline  `json:"pipelines,omitempty"`
-	Issues             []IssueData `json:"issues,omitempty"`
+	TotalEpicEstimates *Estimate    `json:"total_epic_estimates,omitempty"`
+	Estimate           *Estimate    `json:"estimate,omitempty"`
+	Pipeline           *Pipeline    `json:"pipeline,omitempty"`
+	Pipelines          []*Pipeline  `json:"pipelines,omitempty"`
+	Issues             []*IssueData `json:"issues,omitempty"`
+}
+
+// GetTotalEpicEstimates returns the TotalEpicEstimates field if it's non-nil, zero value otherwise.
+func (data *EpicData) GetTotalEpicEstimates() int {
+	if data == nil {
+		return 0
+	}
+	return data.TotalEpicEstimates.GetValue()
+}
+
+// GetEstimate returns the Estimate field if it's non-nil, zero value otherwise.
+func (data *EpicData) GetEstimate() int {
+	if data == nil {
+		return 0
+	}
+	return data.Estimate.GetValue()
 }
 
 func (c *Client) GetEpic(repositoryID, epicID int) (*EpicData, *http.Response, error) {
